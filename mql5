@@ -1,0 +1,77 @@
+
+//+------------------------------------------------------------------+
+//|                                                      Aigridpro H4 Multicurrency|
+//|                                         https://www.forexroboteasy.com|
+//|                                                   Forex Robot Easy Team|
+//+------------------------------------------------------------------+
+
+//--- Include necessary libraries
+#include <Trade\Trade.mqh>
+#include <MovingAverages\MovingAverages.mqh>
+
+//--- Define input parameters
+input double LotSize = 0.01; // Lot size for each trade
+input int GridStep = 20; // Grid step in pips
+input double TakeProfit = 100.0; // Take profit in pips
+input double StopLoss = 50.0; // Stop loss in pips
+
+//--- Global variables
+CTrade trade; // Trade object
+CMovingAverages ma; // Moving averages object
+
+//--- Expert initialization function
+int OnInit()
+{
+   //--- Set up trade parameters
+   trade.SetExpertMagicNumber(123456); // Set magic number for the expert advisor
+   
+   //--- Set up moving averages parameters
+   ma.Create(0,MODE_SMA,5); // Create a simple moving average with period 5
+   ma.Create(1,MODE_SMA,10); // Create a simple moving average with period 10
+   
+   return(INIT_SUCCEEDED);
+}
+
+//--- Expert deinitialization function
+void OnDeinit(const int reason)
+{
+   //--- Close all open trades
+   trade.PositionCloseAll();
+}
+
+//--- Expert start function
+void OnTick()
+{
+   //--- Check if it is time to open new trades
+   if(TimeHour(TimeCurrent()) % 4 == 0)
+   {
+      //--- Calculate the current price level
+      double priceLevel = NormalizeDouble(SymbolInfoDouble(_Symbol,SYMBOL_BID),_Digits) - (GridStep * Point());
+      
+      //--- Check if there are any open trades at the current price level
+      if(trade.PositionSelectBySymbol(_Symbol))
+      {
+         //--- Check if there are any buy trades at the current price level
+         if(trade.PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+            return; // Exit the function if there are buy trades at the current price level
+         
+         //--- Check if there are any sell trades at the current price level
+         if(trade.PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL)
+            return; // Exit the function if there are sell trades at the current price level
+      }
+      
+      //--- Check if the current price level is above the moving averages
+      if(SymbolInfoDouble(_Symbol,SYMBOL_BID) > ma.Main(0) && SymbolInfoDouble(_Symbol,SYMBOL_BID) > ma.Main(1))
+      {
+         //--- Open a buy trade at the current price level
+         trade.Buy(_Symbol,LotSize,priceLevel,priceLevel - TakeProfit * Point(),priceLevel + StopLoss * Point(),'');
+      }
+      
+      //--- Check if the current price level is below the moving averages
+      if(SymbolInfoDouble(_Symbol,SYMBOL_BID) < ma.Main(0) && SymbolInfoDouble(_Symbol,SYMBOL_BID) < ma.Main(1))
+      {
+         //--- Open a sell trade at the current price level
+         trade.Sell(_Symbol,LotSize,priceLevel,priceLevel + TakeProfit * Point(),priceLevel - StopLoss * Point(),'');
+      }
+   }
+}
